@@ -1,0 +1,15 @@
+chardet==5.2.0
+fastapi==0.115.2
+langchain==0.3.25
+langchain-community==0.3.25
+langchain-core==0.3.65
+langchain-mcp-adapters==0.1.7
+langchain-openai==0.3.23
+langchain-text-splitters==0.3.8
+langgraph==0.4.8
+langgraph-checkpoint==2.0.26
+langgraph-sdk==0.1.70
+pymilvus==2.4.8
+uvicorn==0.32.0
+watchdog==6.0.0
+openpyxl
