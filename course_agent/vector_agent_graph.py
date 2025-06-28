@@ -72,8 +72,7 @@ class CourseDbGraph:
         self.llm_db_agent = llm_db_agent
         self.llm_generator = llm_generator
         self.tool_list = tools
-        self.tool_definitions = [
-            convert_to_openai_function(t) for t in self.tool_list]
+        self.tool_definitions = [convert_to_openai_function(t) for t in self.tool_list]
 
         self.agent_call_count = 0
 
@@ -114,8 +113,7 @@ class CourseDbGraph:
         response = None
         try:
             question = f"""The question is: "{messages[0]}" """
-            response = model.invoke(
-                {"question": question, "chat_history": messages[:]})
+            response = model.invoke({"question": question, "chat_history": messages[:]})
         except Exception as e:
             return {"messages": f"Failed to call db agent, error: {e}"}
 
@@ -164,8 +162,7 @@ class CourseDbGraph:
     def build_graph(self):
         workflow = StateGraph(AgentState)
 
-        workflow.add_node(
-            "agent", lambda state: try_except_continue(state, self.agent))
+        workflow.add_node("agent", lambda state: try_except_continue(state, self.agent))
 
         tool_node = ToolNode(self.tool_list)
         workflow.add_node("action", tool_node)
@@ -207,21 +204,22 @@ class CourseDbGraph:
 async def main():
     parser = argparse.ArgumentParser()
     parser.add_argument("--db_uri", type=str, default="http://localhost:19530")
-    parser.add_argument("--ollama_uri", type=str,
-                        default="http://localhost:11434")
+    parser.add_argument("--ollama_uri", type=str, default="http://localhost:11434")
     parser.add_argument("--llm_db_agent", type=str, default="qwen3:1.7b")
     parser.add_argument("--llm_generator", type=str, default="qwen3:1.7b")
 
     args = parser.parse_args()
     logger.info(f"args: {args}")
 
-    llm_db_agent = ChatOllamaTools()
-    llm_db_agent.base_url = args.ollama_uri
-    llm_db_agent.model = args.llm_db_agent
+    llm_db_agent = ChatOllamaTools(
+        base_url=args.ollama_uri,
+        model=args.llm_db_agent,
+    )
 
-    llm_generator = ChatOllamaTools()
-    llm_generator.base_url = args.ollama_uri
-    llm_generator.model = args.llm_generator
+    llm_generator = ChatOllamaTools(
+        base_url=args.ollama_uri,
+        model=args.llm_generator,
+    )
 
     parsed = urlparse(args.db_uri)
     target_db_ip = parsed.hostname
@@ -239,8 +237,12 @@ async def main():
                     "COLLECTION": "course_collection",
                     "DB_IP": target_db_ip,
                     "DB_PORT": str(target_db_port),
-                    "TEXT_EMBEDDER_URL": os.getenv("TEXT_EMBEDDER_URL", "http://localhost:11434/api/embed"),
-                    "TEXT_EMBEDDER_MODEL": os.getenv("TEXT_EMBEDDER_MODEL", "qllama/multilingual-e5-base:latest"),
+                    "TEXT_EMBEDDER_URL": os.getenv(
+                        "TEXT_EMBEDDER_URL", "http://localhost:11434/api/embed"
+                    ),
+                    "TEXT_EMBEDDER_MODEL": os.getenv(
+                        "TEXT_EMBEDDER_MODEL", "qllama/multilingual-e5-base:latest"
+                    ),
                 },
                 "transport": "stdio",
             },

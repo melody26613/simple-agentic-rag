@@ -12,9 +12,7 @@ from course_agent.custom_logger import logger
 
 
 async def main():
-    model = ChatOllamaTools()
-    model.base_url = ollama_uri
-    model.model = ollama_model
+    model = ChatOllamaTools(base_url=ollama_uri, model=ollama_model)
 
     client = MultiServerMCPClient(
         {
@@ -28,8 +26,12 @@ async def main():
                     "COLLECTION": "course_collection",
                     "DB_IP": target_db_ip,
                     "DB_PORT": str(target_db_port),
-                    "TEXT_EMBEDDER_URL": os.getenv("TEXT_EMBEDDER_URL", "http://localhost:11434/api/embed"),
-                    "TEXT_EMBEDDER_MODEL": os.getenv("TEXT_EMBEDDER_MODEL", "qllama/multilingual-e5-base:latest"),
+                    "TEXT_EMBEDDER_URL": os.getenv(
+                        "TEXT_EMBEDDER_URL", "http://localhost:11434/api/embed"
+                    ),
+                    "TEXT_EMBEDDER_MODEL": os.getenv(
+                        "TEXT_EMBEDDER_MODEL", "qllama/multilingual-e5-base:latest"
+                    ),
                 },
                 "transport": "stdio",
             },
@@ -40,7 +42,11 @@ async def main():
         model,
         tools,
     )
-    response = await agent.ainvoke({"messages": "Recommend a NCHU course that can improve my android development skills."})
+    response = await agent.ainvoke(
+        {
+            "messages": "Recommend a NCHU course that can improve my android development skills."
+        }
+    )
 
     last_message = response["messages"][-1]
     logger.info(f"\n\n{last_message=}")

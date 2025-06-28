@@ -13,7 +13,7 @@ from typing import (
     cast,
 )
 
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 
 from langchain_core.callbacks import (
     CallbackManagerForLLMRun,
@@ -36,15 +36,49 @@ from langchain_core.messages.tool import ToolCall
 
 
 class ChatOllamaTools(BaseChatModel):
-    base_url: str = "http://localhost:11434"
+    _DEFAULT_BASE_URL = "http://localhost:11434"
+    _DEFAULT_CHAT_MODEL = "qwen3:1.7b"
+    _DEFAULT_CHAT_STREAM = False
+    _DEFAULT_CHAT_TIMEOUT = 300
+    _DEFAULT_TOOL_CHOICE = "auto"
 
-    model: str = "qwen3:1.7b"
+    base_url: str = Field(
+        default=_DEFAULT_BASE_URL, description="The base url that hosts ollama"
+    )
 
-    chat_stream: bool = False
+    model: str = Field(default=_DEFAULT_CHAT_MODEL, description="The chat model name")
 
-    timeout: int = 300
+    chat_stream: bool = Field(
+        default=_DEFAULT_CHAT_STREAM,
+        description="Enable the response in streaming mode or not",
+    )
 
-    tool_choice: str = "auto"
+    timeout: int = Field(
+        default=_DEFAULT_CHAT_TIMEOUT,
+        description="The timeout in second for ollama chat api",
+    )
+
+    tool_choice: str = Field(
+        default=_DEFAULT_TOOL_CHOICE, description="Enable the llm to use tools or not"
+    )
+
+    def __init__(
+        self,
+        base_url: Optional[str] = _DEFAULT_BASE_URL,
+        model: Optional[str] = _DEFAULT_CHAT_MODEL,
+        chat_stream: Optional[bool] = _DEFAULT_CHAT_STREAM,
+        timeout: Optional[int] = _DEFAULT_CHAT_TIMEOUT,
+        tool_choice: Optional[str] = _DEFAULT_TOOL_CHOICE,
+    ):
+        super().__init__()
+
+        self.base_url = base_url
+        self.model = model
+        self.chat_stream = chat_stream
+        self.timeout = timeout
+        self.tool_choice = tool_choice
+
+        print(f"[ChatOllamaTools] __init__() variables={self.__dict__.items()}")
 
     @property
     def _llm_type(self) -> str:
@@ -76,7 +110,7 @@ class ChatOllamaTools(BaseChatModel):
                 "tool_choice": self.tool_choice,
                 "stream": self.chat_stream,
             },
-            ensure_ascii=False
+            ensure_ascii=False,
         )
         headers = {
             "Content-Type": "application/json",
@@ -97,12 +131,13 @@ class ChatOllamaTools(BaseChatModel):
             return None
 
         if response.status_code != 200:
-            print(f"Error when generate, resposne status code={response.status_code}, response={response.text}")
+            print(
+                f"Error when generate, resposne status code={response.status_code}, response={response.text}"
+            )
             return None
 
         print(f"[ChatOllamaTools] _generate {response.text=}")
 
-        
         full_text = ""
         tool_calls: list[ToolCall] = []
 
@@ -112,14 +147,14 @@ class ChatOllamaTools(BaseChatModel):
                 chunk = line
 
                 if self.chat_stream:
-                    if line.startswith(b'data: '):
-                        chunk = line[len(b'data: '):]
+                    if line.startswith(b"data: "):
+                        chunk = line[len(b"data: ") :]
                         print(f"{chunk=}")
-                        if chunk == b'[DONE]':
+                        if chunk == b"[DONE]":
                             break
 
                 try:
-                    data = json.loads(chunk.decode('utf-8'))
+                    data = json.loads(chunk.decode("utf-8"))
 
                     message = data.get("message", {})
                     content = message.get("content", "")
@@ -154,9 +189,9 @@ class ChatOllamaTools(BaseChatModel):
         print(f"{chat_generation=}")
         return ChatResult(generations=[chat_generation])
 
-
     def __convert_messages(
-            self, messages: List[BaseMessage]) -> List[Dict[str, Union[str, List[str]]]]:
+        self, messages: List[BaseMessage]
+    ) -> List[Dict[str, Union[str, List[str]]]]:
         result: List = []
 
         for message in messages:
@@ -171,7 +206,9 @@ class ChatOllamaTools(BaseChatModel):
                 role = "tool"
             else:
                 print(f"[ChatOllamaTools] __convert_messages {message=}")
-                raise ValueError("Received unsupported message type for ChatOllamaTools.")
+                raise ValueError(
+                    "Received unsupported message type for ChatOllamaTools."
+                )
 
             if isinstance(message.content, str):
                 content = message.content
@@ -185,10 +222,7 @@ class ChatOllamaTools(BaseChatModel):
 
             content = content.strip()
 
-            msg_dict = {
-                "role": role,
-                "content": content
-            }
+            msg_dict = {"role": role, "content": content}
 
             print(f"{message=}")
 
@@ -199,32 +233,25 @@ class ChatOllamaTools(BaseChatModel):
             if getattr(message, "tool_call_id", None):
                 msg_dict["tool_call_id"] = message.tool_call_id
             if getattr(message, "tool_calls", None):
-                msg_dict["tool_calls"] = self.__convert_ai_message_with_tools(message.tool_calls)
+                msg_dict["tool_calls"] = self.__convert_ai_message_with_tools(
+                    message.tool_calls
+                )
 
             result.append(msg_dict)
 
         return result
-    
+
     def __convert_ai_message_with_tools(self, tool_calls: list[dict]) -> list[dict]:
         return [
             {
                 "type": "function",
-                "function": {
-                    "name": tool["name"],
-                    "arguments": tool["args"]
-                }
+                "function": {"name": tool["name"], "arguments": tool["args"]},
             }
             for tool in tool_calls
         ]
-    
+
     def __convert_tool_input(self, functions: dict):
-        return [
-            {
-                "type": "function",
-                "function": func
-            }
-            for func in functions
-        ]
+        return [{"type": "function", "function": func} for func in functions]
 
     def bind_tools(
         self,
@@ -252,12 +279,8 @@ if __name__ == "__main__":
     model = ChatOllamaTools()
 
     messages = [
-        SystemMessage(
-            content="Please answer user's question in English"
-        ),
-        HumanMessage(
-            content="Can you speak English?"
-        )
+        SystemMessage(content="Please answer user's question in English"),
+        HumanMessage(content="Can you speak English?"),
     ]
 
     result = model._generate(messages=messages)
