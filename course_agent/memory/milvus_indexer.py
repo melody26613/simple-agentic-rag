@@ -1,4 +1,6 @@
 from langchain_community.vectorstores import Milvus
+from langchain_core.documents import Document
+
 from pymilvus import (
     connections,
     FieldSchema,
@@ -8,7 +10,6 @@ from pymilvus import (
     utility,
 )
 
-from course_agent.memory.memory_item import MemoryItem
 from tools.text_embedder import TextEmbedder, TEXT_EMBEDDING_MODEL_DIM
 
 
@@ -212,10 +213,10 @@ class MilvusSearcher():
             search_kwargs={"k": MAX_NEIGHBOR_SEARCH}
         )
 
-    def __memory_to_string(self, memory_list: list[MemoryItem]):
+    def __memory_to_string(self, doc_list: list[Document]):
         out_string = ""
 
-        for doc in memory_list:
+        for doc in doc_list:
             course_name = doc.metadata.get("course_name", doc.page_content)
             course_time = doc.metadata.get("course_time", doc.page_content)
             description = doc.metadata.get("description", doc.page_content)
