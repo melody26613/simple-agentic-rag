@@ -70,6 +70,21 @@ separate the llm db agent and the final llm for generation(generator), can set d
 python -m course_agent.vector_agent_graph --db_uri "http://localhost:19530" --ollama_uri "http://localhost:11434" --llm_db_agent "qwen3:1.7b" --llm_generator "qwen3:1.7b"
 ```
 
+* for web api server starting
+```bash
+python -m course_agent.web_api_server --host 0.0.0.0 --port 20000 --db_uri "http://localhost:19530" --ollama_uri "http://localhost:11434"
+```
+
+* for request to web api server
+```bash
+curl --location 'http://localhost:20000/course/search' \
+--header 'Content-Type: application/json' \
+--data '{
+    "input": "Recommend a course that can improve my android development skills.",
+    "model": "qwen3:1.7b"
+}'
+```
+
 ## Available tools for course agent
 
 MCP server is at course_agent/milvus_mcp_server.py
