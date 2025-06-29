@@ -53,6 +53,7 @@ python -m tools.text_embedder
 # convert excel file into vector data and store into milvus db
 python -m course_agent.convert_excel_to_vector --db_host localhost --db_port 19530
 ```
+![flow_conversion](https://github.com/melody26613/simple-agentic-rag/blob/main/course_agent/pic/flow_conversion.jpg)
 
 ### (2) Execution
 Please make sure you are on a **conda environment** or **python virtual environment** before execution.
@@ -85,6 +86,8 @@ curl --location 'http://localhost:20000/course/search' \
 }'
 ```
 
+![flow_web_api_query](https://github.com/melody26613/simple-agentic-rag/blob/main/course_agent/pic/flow_web_api_query.jpg)
+
 ## Available tools for course agent
 
 MCP server is at course_agent/milvus_mcp_server.py
@@ -109,7 +112,7 @@ def search_by_description(query: str) -> str
 
 Tested by ollama model: qwen3:1.7b
 
-(1) User's input:
+(1) User input:
 
 ```
 Recommend a NCHU course that can improve my android development skills.
