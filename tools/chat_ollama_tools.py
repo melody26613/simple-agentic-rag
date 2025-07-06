@@ -1,5 +1,6 @@
 import json
 import requests
+import hashlib
 
 from typing import (
     Any,
@@ -11,7 +12,10 @@ from typing import (
     Type,
     Union,
     cast,
+    Iterator,
 )
+
+from datetime import datetime
 
 from pydantic import BaseModel, Field
 
@@ -21,12 +25,13 @@ from langchain_core.callbacks import (
 from langchain_core.language_models import BaseChatModel
 from langchain_core.messages import (
     AIMessage,
+    AIMessageChunk,
     BaseMessage,
     HumanMessage,
     SystemMessage,
     ToolMessage,
 )
-from langchain_core.outputs import ChatGeneration, ChatResult
+from langchain_core.outputs import ChatGeneration, ChatGenerationChunk, ChatResult
 from langchain_core.utils.function_calling import convert_to_openai_tool
 from langchain_core.language_models import LanguageModelInput
 from langchain_core.runnables import Runnable
@@ -38,9 +43,10 @@ from langchain_core.messages.tool import ToolCall
 class ChatOllamaTools(BaseChatModel):
     _DEFAULT_BASE_URL = "http://localhost:11434"
     _DEFAULT_CHAT_MODEL = "qwen3:1.7b"
-    _DEFAULT_CHAT_STREAM = False
+    _DEFAULT_CHAT_STREAM = True
     _DEFAULT_CHAT_TIMEOUT = 300
     _DEFAULT_TOOL_CHOICE = "auto"
+    _DEFAULT_ENABLE_THINK = False
 
     base_url: str = Field(
         default=_DEFAULT_BASE_URL, description="The base url that hosts ollama"
@@ -62,6 +68,10 @@ class ChatOllamaTools(BaseChatModel):
         default=_DEFAULT_TOOL_CHOICE, description="Enable the llm to use tools or not"
     )
 
+    think_mode: bool = Field(
+        default=_DEFAULT_ENABLE_THINK, description="Enable think mode or not"
+    )
+
     def __init__(
         self,
         base_url: Optional[str] = _DEFAULT_BASE_URL,
@@ -69,6 +79,7 @@ class ChatOllamaTools(BaseChatModel):
         chat_stream: Optional[bool] = _DEFAULT_CHAT_STREAM,
         timeout: Optional[int] = _DEFAULT_CHAT_TIMEOUT,
         tool_choice: Optional[str] = _DEFAULT_TOOL_CHOICE,
+        think_mode: Optional[bool] = _DEFAULT_ENABLE_THINK,
     ):
         super().__init__()
 
@@ -77,30 +88,29 @@ class ChatOllamaTools(BaseChatModel):
         self.chat_stream = chat_stream
         self.timeout = timeout
         self.tool_choice = tool_choice
+        self.think_mode = think_mode
 
         print(f"[ChatOllamaTools] __init__() variables={self.__dict__.items()}")
 
     @property
     def _llm_type(self) -> str:
         """Return type of llm."""
-        return "remote ollama"
+        return "chat ollama tools"
 
-    def _generate(
+    def _create_chat_stream(
         self,
         messages: List[BaseMessage],
         stop: Optional[List[str]] = None,
-        run_manager: Optional[CallbackManagerForLLMRun] = None,
         **kwargs: Any,
-    ) -> ChatResult:
-
+    ) -> Iterator[str]:
         url = f"{self.base_url}/api/chat"
 
+        print(f"[ChatOllamaTools] _create_chat_stream {messages=}")
         messages = self.__convert_messages(messages=messages)
 
+        available_tools = None
         if "functions" in kwargs:
             available_tools = self.__convert_tool_input(functions=kwargs["functions"])
-        else:
-            available_tools = None
 
         payload = json.dumps(
             {
@@ -109,89 +119,167 @@ class ChatOllamaTools(BaseChatModel):
                 "tools": available_tools,
                 "tool_choice": self.tool_choice,
                 "stream": self.chat_stream,
+                "think": self.think_mode,
             },
-            ensure_ascii=False,
+            ensure_ascii=False
         )
         headers = {
             "Content-Type": "application/json",
         }
 
-        print(f"[ChatOllamaTools] _generate {url=}, {payload=}, {headers=}")
+        print(f"[ChatOllamaTools] _create_chat_stream {payload=}, {headers=}")
 
-        try:
-            response = requests.post(
-                url=url,
-                headers=headers,
-                data=payload.encode("utf-8"),
-                timeout=self.timeout,
-                stream=self.chat_stream,
-            )
-        except Exception as e:
-            print(f"Exception {str(e)} happened")
-            return None
+        response = requests.post(
+            url=url,
+            headers=headers,
+            data=payload.encode("utf-8"),
+            timeout=self.timeout,
+            stream=self.chat_stream,
+        )
 
         if response.status_code != 200:
-            print(
-                f"Error when generate, resposne status code={response.status_code}, response={response.text}"
-            )
-            return None
+            raise Exception(f"[ChatOllamaTools] error when generate, resposne status code={response.status_code}, response={response.text}")
 
-        print(f"[ChatOllamaTools] _generate {response.text=}")
+        return response.iter_lines(decode_unicode=True)
 
-        full_text = ""
-        tool_calls: list[ToolCall] = []
-
-        for line in response.iter_lines():
-            print(f"{line=}")
-            if line:
-                chunk = line
-
-                if self.chat_stream:
-                    if line.startswith(b"data: "):
-                        chunk = line[len(b"data: ") :]
-                        print(f"{chunk=}")
-                        if chunk == b"[DONE]":
-                            break
-
-                try:
-                    data = json.loads(chunk.decode("utf-8"))
-
-                    message = data.get("message", {})
-                    content = message.get("content", "")
-                    full_text += content
-
-                    tool_calls_data = message.get("tool_calls")
-                    if isinstance(tool_calls_data, list):
-                        for i, raw_tool in enumerate(tool_calls_data):
-                            func = raw_tool.get("function", {})
-                            tool_call: ToolCall = {
-                                "name": func.get("name"),
-                                "args": func.get("arguments", {}),
-                                "id": raw_tool.get("id", f"tool-{i}"),
-                            }
-                            tool_calls.append(tool_call)
-
-                    if data.get("done"):
-                        break
-                except json.JSONDecodeError:
+    def _chat_stream_with_aggregation(
+        self,
+        messages: List[BaseMessage],
+        stop: Optional[List[str]] = None,
+        run_manager: Optional[CallbackManagerForLLMRun] = None,
+        verbose: bool = False,
+        **kwargs: Any,
+    ) -> ChatGenerationChunk:
+        final_chunk: Optional[ChatGenerationChunk] = None
+        for stream_resp in self._create_chat_stream(messages, stop, **kwargs):
+            if stream_resp:
+                chunk = self._chat_stream_response_to_chat_generation_chunk(stream_resp)
+                if chunk is None:
                     continue
 
-        print(f"[ChatOllamaTools] _generate {full_text=}, {tool_calls=}")
+                if final_chunk is None:
+                    final_chunk = chunk
+                else:
+                    final_chunk += chunk
+                if run_manager:
+                    run_manager.on_llm_new_token(
+                        chunk.text,
+                        chunk=chunk,
+                        verbose=verbose,
+                    )
+        if final_chunk is None:
+            raise ValueError("No data received from Ubigpt stream.")
+
+        return final_chunk
+
+    def _chat_stream_response_to_chat_generation_chunk(
+        self,
+        stream_response: Any,
+    ) -> ChatGenerationChunk:
+        """Convert a stream response to a generation chunk."""
+        if isinstance(stream_response, bytes):
+            stream_response = stream_response.decode("utf-8")
+            
+        if stream_response.startswith("data: "):
+            stream_response = stream_response[len("data: "):]
+        
+        parsed_response = json.loads(stream_response, strict=False)
+        generation_info = parsed_response if parsed_response.get("done", False) is True else None
+        additional_kwargs = {}
+        
+        message = parsed_response.get("message", None)
+        if message is None:
+            return None
+
+        content = message.get("content", "")
+
+        tool_calls = message.get("tool_calls", None)
+        additional_kwargs["tool_calls"] = self.__convert_tool_calls_output(tool_calls)
+
+        chunk = ChatGenerationChunk(
+            message=AIMessageChunk(
+                content=content,
+                additional_kwargs=additional_kwargs,
+            ),
+            generation_info=generation_info,
+        )
+        return chunk
+
+    def __convert_tool_calls_output(self, tool_calls: List[dict]) -> List[dict]:
+        if tool_calls is None:
+            return None
+    
+        modified_data = []
+
+        for item in tool_calls:
+            if "function" in item and "arguments" in item["function"]:
+                arguments_dict = item["function"]["arguments"]
+                arguments = json.dumps(arguments_dict, ensure_ascii=False)
+
+                new_item = item.copy()
+                new_item["id"] = f"tool-{self.__gen_id()}"
+                new_item["type"] = "function"
+                new_item["function"] = new_item["function"].copy()
+                new_item["function"]["arguments"] = arguments
+                
+                modified_data.append(new_item)
+            else:
+                modified_data.append(item)
+
+        return modified_data
+
+    def __gen_id(self) -> str:
+        seed = datetime.now().strftime("%Y-%m-%d %H:%M:%S.%f")
+        hash_value = hashlib.sha1(seed.encode()).hexdigest()
+        return hash_value
+
+    def _stream(
+        self,
+        messages: List[BaseMessage],
+        stop: Optional[List[str]] = None,
+        run_manager: Optional[CallbackManagerForLLMRun] = None,
+        **kwargs: Any,
+    ) -> Iterator[ChatGenerationChunk]:
+        for stream_resp in self._create_chat_stream(messages, stop, **kwargs):
+            if stream_resp:
+                chunk = self._chat_stream_response_to_chat_generation_chunk(stream_resp)
+                if run_manager:
+                    run_manager.on_llm_new_token(
+                        chunk.text,
+                        chunk=chunk,
+                        verbose=self.verbose,
+                    )
+                yield chunk
+
+    def _generate(
+        self,
+        messages: List[BaseMessage],
+        stop: Optional[List[str]] = None,
+        run_manager: Optional[CallbackManagerForLLMRun] = None,
+        **kwargs: Any,
+    ) -> ChatResult:
+        final_chunk = self._chat_stream_with_aggregation(
+            messages,
+            stop=stop,
+            run_manager=run_manager,
+            verbose=self.verbose,
+            **kwargs,
+        )
+        final_tool_calls = final_chunk.message.tool_calls
 
         chat_generation = ChatGeneration(
             message=AIMessage(
-                content=full_text,
-                tool_calls=tool_calls,
+                content=final_chunk.text,
+                tool_calls=final_tool_calls,
             ),
-            generation_info=None,
+            generation_info=final_chunk.generation_info,
         )
-
-        print(f"{chat_generation=}")
+        print(f"[ChatOllamaTools] _generate {chat_generation=}")
         return ChatResult(generations=[chat_generation])
 
+
     def __convert_messages(
-        self, messages: List[BaseMessage]
-    ) -> List[Dict[str, Union[str, List[str]]]]:
+            self, messages: List[BaseMessage]) -> List[Dict[str, Union[str, List[str]]]]:
         result: List = []
 
         for message in messages:
@@ -206,9 +294,7 @@ class ChatOllamaTools(BaseChatModel):
                 role = "tool"
             else:
                 print(f"[ChatOllamaTools] __convert_messages {message=}")
-                raise ValueError(
-                    "Received unsupported message type for ChatOllamaTools."
-                )
+                raise ValueError("Received unsupported message type for ChatOllamaTools.")
 
             if isinstance(message.content, str):
                 content = message.content
@@ -216,15 +302,16 @@ class ChatOllamaTools(BaseChatModel):
                 content = ""
                 for content_part in cast(List[Dict], message.content):
                     if content_part.get("type") == "text":
-                        content += f"\n{content_part['text']}"
+                        content += f"""\n{content_part["text"]}"""
                     else:
                         raise ValueError("Unsupported message content type.")
 
             content = content.strip()
 
-            msg_dict = {"role": role, "content": content}
-
-            print(f"{message=}")
+            msg_dict = {
+                "role": role,
+                "content": content
+            }
 
             if getattr(message, "name", None):
                 msg_dict["name"] = message.name
@@ -233,25 +320,32 @@ class ChatOllamaTools(BaseChatModel):
             if getattr(message, "tool_call_id", None):
                 msg_dict["tool_call_id"] = message.tool_call_id
             if getattr(message, "tool_calls", None):
-                msg_dict["tool_calls"] = self.__convert_ai_message_with_tools(
-                    message.tool_calls
-                )
+                msg_dict["tool_calls"] = self.__convert_ai_message_with_tools(message.tool_calls)
 
             result.append(msg_dict)
 
         return result
-
+    
     def __convert_ai_message_with_tools(self, tool_calls: list[dict]) -> list[dict]:
         return [
             {
                 "type": "function",
-                "function": {"name": tool["name"], "arguments": tool["args"]},
+                "function": {
+                    "name": tool["name"],
+                    "arguments": tool["args"]
+                }
             }
             for tool in tool_calls
         ]
-
+    
     def __convert_tool_input(self, functions: dict):
-        return [{"type": "function", "function": func} for func in functions]
+        return [
+            {
+                "type": "function",
+                "function": func
+            }
+            for func in functions
+        ]
 
     def bind_tools(
         self,
@@ -283,5 +377,10 @@ if __name__ == "__main__":
         HumanMessage(content="Can you speak English?"),
     ]
 
-    result = model._generate(messages=messages)
-    print(result)
+    result = ""
+    for chunk in model._stream(messages=messages):
+        if chunk is not None:
+            print(chunk)
+            result += chunk.text
+    
+    print(f"{result=}")
