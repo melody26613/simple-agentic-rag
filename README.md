@@ -86,6 +86,17 @@ curl --location 'http://localhost:20000/course/search' \
 }'
 ```
 
+to disable stream mode
+```bash
+curl --location 'http://localhost:20000/course/search' \
+--header 'Content-Type: application/json' \
+--data '{
+    "input": "Recommend a course that can improve my android development skills.",
+    "model": "qwen3:1.7b",
+    "stream": false
+}'
+```
+
 ![flow_web_api_query](https://github.com/melody26613/simple-agentic-rag/blob/main/course_agent/pic/flow_web_api_query.jpg)
 
 ## Available tools for course agent
