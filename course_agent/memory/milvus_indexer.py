@@ -149,7 +149,7 @@ class MilvusWrapper:
         return collection
 
 
-class MilvusSearcher():
+class MilvusSearcher:
     def __init__(
         self,
         db_name="default",

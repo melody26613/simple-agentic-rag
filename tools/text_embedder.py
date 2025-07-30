@@ -20,7 +20,9 @@ class TextEmbedder(Embeddings):
     def __init__(self):
         self.api_url = self.__TEXT_EMBEDDER_URL
         self.model_name = self.__TEXT_EMBEDDER_MODEL
-        print(f"[TextEmbedder] init text embedding model {self.api_url=}, {self.model_name=}")
+        print(
+            f"[TextEmbedder] init text embedding model {self.api_url=}, {self.model_name=}"
+        )
 
     def embed_documents(self, texts: list[str]) -> list[list[float]]:
         print(f"[embed_documents] {texts=}")

@@ -32,7 +32,7 @@ class MilvusDataOperatorCourse(MilvusDataOperator):
             id=id,
             item=memory_dict,
         )
-    
+
     def list_item(self) -> List[dict]:
         data = super().list_item()
 
@@ -45,7 +45,7 @@ class MilvusDataOperatorCourse(MilvusDataOperator):
             }
             elem.clear()
             elem.update(reordered)
-        
+
         return data
 
 
@@ -68,7 +68,7 @@ if __name__ == "__main__":
     memory_item = {
         "course_name": "Class1",
         "course_time": "Wed. 09:00~12:00",
-        "description": "Test by Melody Wang."
+        "description": "Test by Melody Wang.",
     }
     operator.insert_item(id="123", item=memory_item)
     operator.flush()
@@ -77,7 +77,7 @@ if __name__ == "__main__":
     data = operator.list_item()
     for row in data:
         print(row)
-    
+
     # delete item
     operator.delete_item(id="123")
     operator.flush()

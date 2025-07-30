@@ -121,7 +121,7 @@ class ChatOllamaTools(BaseChatModel):
                 "stream": self.chat_stream,
                 "think": self.think_mode,
             },
-            ensure_ascii=False
+            ensure_ascii=False,
         )
         headers = {
             "Content-Type": "application/json",
@@ -138,7 +138,9 @@ class ChatOllamaTools(BaseChatModel):
         )
 
         if response.status_code != 200:
-            raise Exception(f"[ChatOllamaTools] error when generate, resposne status code={response.status_code}, response={response.text}")
+            raise Exception(
+                f"[ChatOllamaTools] error when generate, resposne status code={response.status_code}, response={response.text}"
+            )
 
         return response.iter_lines(decode_unicode=True)
 
@@ -168,7 +170,7 @@ class ChatOllamaTools(BaseChatModel):
                         verbose=verbose,
                     )
         if final_chunk is None:
-            raise ValueError("No data received from Ubigpt stream.")
+            raise ValueError("No data received from Ollama stream.")
 
         return final_chunk
 
@@ -179,14 +181,16 @@ class ChatOllamaTools(BaseChatModel):
         """Convert a stream response to a generation chunk."""
         if isinstance(stream_response, bytes):
             stream_response = stream_response.decode("utf-8")
-            
+
         if stream_response.startswith("data: "):
-            stream_response = stream_response[len("data: "):]
-        
+            stream_response = stream_response[len("data: ") :]
+
         parsed_response = json.loads(stream_response, strict=False)
-        generation_info = parsed_response if parsed_response.get("done", False) is True else None
+        generation_info = (
+            parsed_response if parsed_response.get("done", False) is True else None
+        )
         additional_kwargs = {}
-        
+
         message = parsed_response.get("message", None)
         if message is None:
             return None
@@ -208,7 +212,7 @@ class ChatOllamaTools(BaseChatModel):
     def __convert_tool_calls_output(self, tool_calls: List[dict]) -> List[dict]:
         if tool_calls is None:
             return None
-    
+
         modified_data = []
 
         for item in tool_calls:
@@ -221,7 +225,7 @@ class ChatOllamaTools(BaseChatModel):
                 new_item["type"] = "function"
                 new_item["function"] = new_item["function"].copy()
                 new_item["function"]["arguments"] = arguments
-                
+
                 modified_data.append(new_item)
             else:
                 modified_data.append(item)
@@ -277,9 +281,9 @@ class ChatOllamaTools(BaseChatModel):
         print(f"[ChatOllamaTools] _generate {chat_generation=}")
         return ChatResult(generations=[chat_generation])
 
-
     def __convert_messages(
-            self, messages: List[BaseMessage]) -> List[Dict[str, Union[str, List[str]]]]:
+        self, messages: List[BaseMessage]
+    ) -> List[Dict[str, Union[str, List[str]]]]:
         result: List = []
 
         for message in messages:
@@ -294,7 +298,9 @@ class ChatOllamaTools(BaseChatModel):
                 role = "tool"
             else:
                 print(f"[ChatOllamaTools] __convert_messages {message=}")
-                raise ValueError("Received unsupported message type for ChatOllamaTools.")
+                raise ValueError(
+                    "Received unsupported message type for ChatOllamaTools."
+                )
 
             if isinstance(message.content, str):
                 content = message.content
@@ -308,10 +314,7 @@ class ChatOllamaTools(BaseChatModel):
 
             content = content.strip()
 
-            msg_dict = {
-                "role": role,
-                "content": content
-            }
+            msg_dict = {"role": role, "content": content}
 
             if getattr(message, "name", None):
                 msg_dict["name"] = message.name
@@ -320,32 +323,25 @@ class ChatOllamaTools(BaseChatModel):
             if getattr(message, "tool_call_id", None):
                 msg_dict["tool_call_id"] = message.tool_call_id
             if getattr(message, "tool_calls", None):
-                msg_dict["tool_calls"] = self.__convert_ai_message_with_tools(message.tool_calls)
+                msg_dict["tool_calls"] = self.__convert_ai_message_with_tools(
+                    message.tool_calls
+                )
 
             result.append(msg_dict)
 
         return result
-    
+
     def __convert_ai_message_with_tools(self, tool_calls: list[dict]) -> list[dict]:
         return [
             {
                 "type": "function",
-                "function": {
-                    "name": tool["name"],
-                    "arguments": tool["args"]
-                }
+                "function": {"name": tool["name"], "arguments": tool["args"]},
             }
             for tool in tool_calls
         ]
-    
+
     def __convert_tool_input(self, functions: dict):
-        return [
-            {
-                "type": "function",
-                "function": func
-            }
-            for func in functions
-        ]
+        return [{"type": "function", "function": func} for func in functions]
 
     def bind_tools(
         self,
@@ -382,5 +378,5 @@ if __name__ == "__main__":
         if chunk is not None:
             print(chunk)
             result += chunk.text
-    
+
     print(f"{result=}")

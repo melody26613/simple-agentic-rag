@@ -6,7 +6,8 @@ from typing import Type, List
 
 from tools.text_embedder import TextEmbedder
 
-class MilvusDataOperator():
+
+class MilvusDataOperator:
     __DB_ALIAS = "data_operator"
     __DB_HOST = "localhost"
     __DB_PORT = "19530"
@@ -40,21 +41,22 @@ class MilvusDataOperator():
                 return True
             except Exception as e:
                 print(f"[MilvusOperator][create_collection] {e}")
-                print(f"[MilvusOperator][create_collection] exception traceback: {traceback.format_exc()}")
+                print(
+                    f"[MilvusOperator][create_collection] exception traceback: {traceback.format_exc()}"
+                )
                 return False
 
     def delete_collection(self, collection_name: str) -> bool:
         with self.mutex:
             try:
-                collection = Collection(
-                    name=collection_name,
-                    using=self.db_alias
-                )
+                collection = Collection(name=collection_name, using=self.db_alias)
                 collection.drop()
                 return True
             except Exception as e:
                 print(f"[MilvusOperator][delete_collection] {e}")
-                print(f"[MilvusOperator][delete_collection] exception traceback: {traceback.format_exc()}")
+                print(
+                    f"[MilvusOperator][delete_collection] exception traceback: {traceback.format_exc()}"
+                )
                 return False
 
     def list_collection(self) -> list:
@@ -66,10 +68,7 @@ class MilvusDataOperator():
 
         with self.mutex:
             try:
-                collection = Collection(
-                    name=collection_name,
-                    using=self.db_alias
-                )
+                collection = Collection(name=collection_name, using=self.db_alias)
                 collection.load()
                 self.collection = collection
 
@@ -77,7 +76,9 @@ class MilvusDataOperator():
 
             except Exception as e:
                 print(f"[MilvusOperator][set_collection] {e}")
-                print(f"[MilvusOperator][set_collection] exception traceback: {traceback.format_exc()}")
+                print(
+                    f"[MilvusOperator][set_collection] exception traceback: {traceback.format_exc()}"
+                )
                 return False
 
     def text_embedding(self, text: str) -> List[float]:
@@ -89,7 +90,8 @@ class MilvusDataOperator():
             return False
         if self.collection is None:
             print(
-                f"[MilvusOperator][insert_item] invalid collection, please call set_collection() before calling this")
+                f"[MilvusOperator][insert_item] invalid collection, please call set_collection() before calling this"
+            )
             return False
 
         with self.mutex:
@@ -106,13 +108,16 @@ class MilvusDataOperator():
 
             except Exception as e:
                 print(f"[MilvusOperator][insert_item] {e}")
-                print(f"[MilvusOperator][insert_item] exception traceback: {traceback.format_exc()}")
+                print(
+                    f"[MilvusOperator][insert_item] exception traceback: {traceback.format_exc()}"
+                )
                 return False
 
     def delete_item(self, id: str) -> bool:
         if self.collection is None:
             print(
-                f"[MilvusOperator][delete_item] invalid collection, please call set_collection() before calling this")
+                f"[MilvusOperator][delete_item] invalid collection, please call set_collection() before calling this"
+            )
             return False
 
         with self.mutex:
@@ -129,13 +134,16 @@ class MilvusDataOperator():
 
             except Exception as e:
                 print(f"[MilvusOperator][delete_item] {e}")
-                print(f"[MilvusOperator][delete_item] exception traceback: {traceback.format_exc()}")
+                print(
+                    f"[MilvusOperator][delete_item] exception traceback: {traceback.format_exc()}"
+                )
                 return False
 
     def list_item(self) -> list:
         if self.collection is None:
             print(
-                f"[MilvusOperator][list_item] invalid collection, please call set_collection() before calling this")
+                f"[MilvusOperator][list_item] invalid collection, please call set_collection() before calling this"
+            )
             return False
 
         with self.mutex:
@@ -162,13 +170,16 @@ class MilvusDataOperator():
 
             except Exception as e:
                 print(f"[MilvusOperator][list_item] {e}")
-                print(f"[MilvusOperator][list_item] exception traceback: {traceback.format_exc()}")
+                print(
+                    f"[MilvusOperator][list_item] exception traceback: {traceback.format_exc()}"
+                )
                 return data
 
     def flush(self):
         if self.collection is None:
             print(
-                f"[MilvusOperator][flush] invalid collection, please call set_collection() before calling this")
+                f"[MilvusOperator][flush] invalid collection, please call set_collection() before calling this"
+            )
             return
 
         try:
@@ -177,7 +188,9 @@ class MilvusDataOperator():
 
         except Exception as e:
             print(f"[MilvusOperator][flush] {e}")
-            print(f"[MilvusOperator][flush] exception traceback: {traceback.format_exc()}")
+            print(
+                f"[MilvusOperator][flush] exception traceback: {traceback.format_exc()}"
+            )
 
 
 if __name__ == "__main__":

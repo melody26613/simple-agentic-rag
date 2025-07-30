@@ -76,7 +76,7 @@ async def invoke_stream(data: InputRequest, client: MultiServerMCPClient):
 
             if not message.content or len(message.content) == 0:
                 continue
-            
+
             yield message.content
 
     except Exception as e:
