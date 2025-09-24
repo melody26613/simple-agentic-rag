@@ -8,9 +8,10 @@ class MilvusDataOperatorCourse(MilvusDataOperator):
     __DB_ALIAS = "data_operator"
     __DB_HOST = "localhost"
     __DB_PORT = "19530"
+    __DB_NAME = "default"
 
-    def __init__(self, alias=__DB_ALIAS, db_host=__DB_HOST, db_port=__DB_PORT):
-        super().__init__(alias=alias, db_host=db_host, db_port=db_port)
+    def __init__(self, alias=__DB_ALIAS, db_host=__DB_HOST, db_port=__DB_PORT, db_name=__DB_NAME):
+        super().__init__(alias=alias, db_host=db_host, db_port=db_port, db_name=db_name)
 
     def create_collection(self, collection_name: str) -> bool:
         return super().create_collection(

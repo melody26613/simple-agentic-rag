@@ -1,6 +1,6 @@
 import traceback
 
-from pymilvus import connections, Collection, utility
+from pymilvus import connections, Collection, utility, db
 from threading import Lock
 from typing import Type, List
 
@@ -11,19 +11,34 @@ class MilvusDataOperator:
     __DB_ALIAS = "data_operator"
     __DB_HOST = "localhost"
     __DB_PORT = "19530"
+    __DB_NAME = "default"
 
-    def __init__(self, alias=__DB_ALIAS, db_host=__DB_HOST, db_port=__DB_PORT):
+    def __init__(self, alias=__DB_ALIAS, db_host=__DB_HOST, db_port=__DB_PORT, db_name=__DB_NAME):
         print(f"[MilvusOperator][__init__] {alias=}, {db_host=}, {db_port=}")
+
+        connections.connect(
+            host=db_host,
+            port=db_port,
+        )
+
+        all_db_name = set(db.list_database())
+        if not db_name in all_db_name:
+            db.create_database(db_name=db_name)
+            print(f"[MilvusOperator][__init__] database '{db_name}' created successfully.")
+        else:
+            print(f"[MilvusOperator][__init__] database '{db_name}' already exists.")
 
         connections.connect(
             alias=alias,
             host=db_host,
             port=db_port,
+            db_name=db_name,
         )
 
         self.db_alias = alias
         self.db_host = db_host
         self.db_port = db_port
+        self.db_name = db_name
 
         self.embedder = TextEmbedder()
         self.mutex = Lock()
@@ -33,6 +48,7 @@ class MilvusDataOperator:
         with self.mutex:
             try:
                 wrapper_class(
+                    db_name=self.db_name,
                     collection_name=collection_name,
                     ip_address=self.db_host,
                     port=self.db_port,
@@ -102,7 +118,7 @@ class MilvusDataOperator:
                 collection = self.collection
 
                 item["id"] = id
-                collection.insert([item])
+                collection.upsert([item])
 
                 return True
 

@@ -11,6 +11,7 @@ EXCEL_FILEPATH = "course_agent/university_cs_courses.xlsx"
 parser = argparse.ArgumentParser()
 parser.add_argument("--db_host", type=str, default="localhost")
 parser.add_argument("--db_port", type=str, default="19530")
+parser.add_argument("--db_name", type=str, default="default")
 
 args = parser.parse_args()
 print(f"args: {args}")
@@ -19,6 +20,7 @@ print(f"args: {args}")
 operator = MilvusDataOperatorCourse(
     db_host=args.db_host,
     db_port=args.db_port,
+    db_name=args.db_name,
 )
 
 

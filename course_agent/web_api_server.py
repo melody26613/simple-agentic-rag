@@ -109,6 +109,7 @@ async def search(request_data: InputRequest):
                     "COLLECTION": "course_collection",
                     "DB_IP": target_db_ip,
                     "DB_PORT": str(target_db_port),
+                    "DB_NAME": target_db_name,
                     "TEXT_EMBEDDER_URL": os.getenv(
                         "TEXT_EMBEDDER_URL", "http://localhost:11434/api/embed"
                     ),
@@ -136,6 +137,7 @@ if __name__ == "__main__":
     parser.add_argument("--host", type=str, default="0.0.0.0")
     parser.add_argument("--port", type=int, default=20000)
     parser.add_argument("--db_uri", type=str, default="http://localhost:19530")
+    parser.add_argument("--db_name", type=str, default="default")
     parser.add_argument("--ollama_uri", type=str, default="http://localhost:11434")
 
     args = parser.parse_args()
@@ -144,6 +146,7 @@ if __name__ == "__main__":
     parsed = urlparse(args.db_uri)
     target_db_ip = parsed.hostname
     target_db_port = parsed.port
+    target_db_name = args.db_name
 
     ollama_uri = args.ollama_uri
 

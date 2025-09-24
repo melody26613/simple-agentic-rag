@@ -7,6 +7,7 @@ from course_agent.memory.milvus_indexer import MilvusSearcher
 collection = os.getenv("COLLECTION", None)
 db_ip = os.getenv("DB_IP", None)
 db_port = os.getenv("DB_PORT", None)
+db_name = os.getenv("DB_NAME", "default")
 
 if collection is None or len(collection) == 0:
     raise Exception("[Error] invalid environment variable value for 'COLLECTION'")
@@ -24,6 +25,7 @@ searcher = MilvusSearcher(
     collection_name=collection,
     db_ip=db_ip,
     db_port=db_port,
+    db_name=db_name,
 )
 
 
