@@ -28,7 +28,7 @@ bash standalone_embed.sh start
 
 ### (3) Install Milvus UI attu
 ```bash
-docker run --name milvus_attu --network host -e MILVUS_URL=localhost:19530 zilliz/attu:v2.5
+docker run -d --name milvus_attu --network host -e MILVUS_URL=localhost:19530 -e SERVER_PORT=19531 zilliz/attu:v2.5
 ```
 [zilliztech/attu quick start](https://github.com/zilliztech/attu?tab=readme-ov-file#quick-start)
 
@@ -105,17 +105,17 @@ MCP server is at course_agent/milvus_mcp_server.py
 
 1. Tool to search course name by key word query
 ```python
-def search_by_course_name(query: str) -> str
+async def search_by_course_name(query: str) -> str
 ```
 
 2. Tool to search course time by key word query
 ```python
-def search_by_course_time(query: str) -> str
+async def search_by_course_time(query: str) -> str
 ```
 
 3. Tool to search course detail description by key word query
 ```python
-def search_by_description(query: str) -> str
+async def search_by_description(query: str) -> str
 ```
 
 
