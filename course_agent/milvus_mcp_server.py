@@ -1,4 +1,5 @@
 import os
+import asyncio
 
 from mcp.server.fastmcp import FastMCP
 from course_agent.memory.milvus_indexer import MilvusSearcher
@@ -27,43 +28,43 @@ searcher = MilvusSearcher(
 
 
 @mcp.tool()
-def search_by_course_name(query: str) -> str:
+async def search_by_course_name(query: str) -> str:
     """
     You can get the most up-to-date computer science course info at National Chung Hsing University.
     Based on the question and your context, decide what text to search for in the database in field course name.
     The query will then search your memories for you.
     """
-    return searcher.search_by_course_name(query)
+    return await searcher.search_by_course_name_async(query)
 
 
 @mcp.tool()
-def search_by_course_time(query: str) -> str:
+async def search_by_course_time(query: str) -> str:
     """
     You can get the most up-to-date computer science course info at National Chung Hsing University.
     Based on the question and your context, decide what text to search for in the database in field course time.
     The query will then search course details for you.
     """
-    return searcher.search_by_course_time(query)
+    return await searcher.search_by_course_time_async(query)
 
 
 @mcp.tool()
-def search_by_description(query: str) -> str:
+async def search_by_description(query: str) -> str:
     """
     You can get the most up-to-date computer science course info at National Chung Hsing University.
     Based on the question and your context, decide what text to search for in the database in field description, including the course content, like the goal of the course and the detail content that student can learn from this course.
     The query will then search course details for you.
     """
-    return searcher.search_by_description(query)
+    return await searcher.search_by_description_async(query)
 
 
 if __name__ == "__main__":
     mcp.run(transport="stdio")
 
-    # result = search_by_course_name("Android")
+    # result = asyncio.run(search_by_course_name("Android"))
     # print(f"{result=}")
 
-    # result = search_by_course_time("Fri")
+    # result = asyncio.run(search_by_course_time("Fri"))
     # print(f"{result=}")
 
-    # result = search_by_description("firmware")
+    # result = asyncio.run(search_by_description("firmware"))
     # print(f"{result=}")

@@ -229,10 +229,22 @@ class MilvusSearcher:
         docs = self.course_name_retriever.invoke(query)
         return self.__memory_to_string(docs)
 
+    async def search_by_course_name_async(self, query: str) -> str:
+        docs = await self.course_name_retriever.ainvoke(query)
+        return self.__memory_to_string(docs)
+
     def search_by_course_time(self, query: str) -> str:
         docs = self.course_time_retriever.invoke(query)
         return self.__memory_to_string(docs)
 
+    async def search_by_course_time_async(self, query: str) -> str:
+        docs = await self.course_time_retriever.ainvoke(query)
+        return self.__memory_to_string(docs)
+
     def search_by_description(self, query: str) -> str:
         docs = self.description_retriever.invoke(query)
+        return self.__memory_to_string(docs)
+
+    async def search_by_description_async(self, query: str) -> str:
+        docs = await self.description_retriever.ainvoke(query)
         return self.__memory_to_string(docs)
